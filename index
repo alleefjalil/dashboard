@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Eksekutif Dapur Siswa @ UniMAP</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- PapaParse for parsing direct Google Sheet CSV export if provided -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              800: '#3730a3',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    
+    .presentation-card {
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .presentation-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.08);
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    .live-dot {
+      animation: pulse-subtle 2s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen antialiased flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
+
+  <!-- MODAL LOGIN (KATA LALUAN DALAM DASHBOARD) -->
+  <div id="loginModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/75 backdrop-blur-md p-4 transition-all duration-300">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 border border-slate-100 relative overflow-hidden">
+      <!-- Ambient light effect -->
+      <div class="absolute -top-12 -right-12 w-36 h-36 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+      <div class="absolute -bottom-12 -left-12 w-36 h-36 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+      <div class="text-center relative z-10">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 mb-5 shadow-inner">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          </svg>
+        </div>
+        <h2 class="text-2xl font-bold tracking-tight text-slate-900">Portal Eksekutif</h2>
+        <p class="text-xs text-slate-500 mt-1 mb-6">Dapur Siswa @ Universiti Malaysia Perlis (UniMAP)</p>
+
+        <form onsubmit="handleLogin(event)" class="space-y-4">
+          <div class="text-left">
+            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 ml-1">Kata Laluan Masuk</label>
+            <div class="relative">
+              <input 
+                type="password" 
+                id="adminPassword" 
+                placeholder="Masukkan kata laluan..." 
+                class="w-full pl-4 pr-10 py-3 text-sm rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-600 transition" 
+                required 
+                autofocus
+              >
+              <button 
+                type="button" 
+                onclick="togglePasswordVisibility()" 
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1">
+                <svg id="eyeIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+              </button>
+            </div>
+            <p id="loginError" class="text-red-500 text-xs mt-2 hidden flex items-center gap-1 font-medium">
+              <svg class="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+              <span>Kata laluan salah. Sila cuba lagi.</span>
+            </p>
+          </div>
+
+          <button 
+            type="submit" 
+            id="btnLoginSubmit"
+            class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-semibold text-sm rounded-xl shadow-lg shadow-indigo-500/25 transition duration-150 flex items-center justify-center gap-2">
+            <span>Buka Dashboard</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          </button>
+        </form>
+
+        <div class="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+          <span>Kata laluan lalai: <strong class="text-slate-700 font-mono">admin123</strong></span>
+          <span class="inline-flex items-center gap-1 text-emerald-600 font-medium">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Siap Sedia
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN DASHBOARD CONTENT -->
+  <div id="dashboardApp" class="hidden flex-1">
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+        
+        <div class="flex items-center space-x-3.5">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-500 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-indigo-500/20">
+            DS
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="font-bold text-slate-900 text-lg tracking-tight">Dapur Siswa UniMAP</h1>
+              <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/50">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 live-dot"></span> Aktif
+              </span>
+            </div>
+            <p class="text-xs text-slate-500">Sistem Pemantauan & Analisis Pengagihan Makanan Mahasiswa</p>
+          </div>
+        </div>
+
+        <!-- Toolbar Buttons: Source, Presentation, Settings & Logout -->
+        <div class="flex items-center flex-wrap gap-2.5">
+          <!-- Data Source Toggle -->
+          <div class="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-medium border border-slate-200/80">
+            <button id="btnSourceLive" onclick="setDataSource('live')" class="px-2.5 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition">Google Sheet</button>
+            <button id="btnSourceDemo" onclick="setDataSource('demo')" class="px-2.5 py-1 rounded-lg bg-white shadow-xs text-indigo-700 font-semibold transition">Demo Data</button>
+          </div>
+
+          <!-- Presentation View Toggle -->
+          <button 
+            onclick="togglePresentationMode()" 
+            title="Mod Presentasi Skrin Penuh"
+            class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/70 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+            <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>
+            <span id="txtPresentation">Mod Presentasi</span>
+          </button>
+
+          <!-- Refresh Data Button -->
+          <button 
+            onclick="fetchDashboardData()" 
+            class="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-xs font-medium transition"
+            title="Muat Semula Data">
+            <svg id="refreshIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          </button>
+
+          <!-- Settings modal button -->
+          <button 
+            onclick="openConfigModal()" 
+            class="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-xs font-medium transition"
+            title="Tetapan Sumber Data & Password">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          </button>
+
+          <!-- Logout -->
+          <button 
+            onclick="logout()" 
+            class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200/60 rounded-xl text-xs font-semibold transition flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            <span>Kunci</span>
+          </button>
+        </div>
+
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+      <!-- Sub-Bar: Filter & Status Info -->
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- Filter Julat Hari -->
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
+            <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Julat:</span>
+            <select id="timeRangeFilter" onchange="applyFilter()" class="bg-slate-50 border border-slate-200 text-xs font-semibold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-700 cursor-pointer">
+              <option value="all">Semua Rekod Terkumpul</option>
+              <option value="7">7 Hari Terakhir</option>
+              <option value="14" selected>14 Hari Terakhir</option>
+              <option value="30">30 Hari Terakhir</option>
+            </select>
+          </div>
+
+          <span class="hidden sm:inline h-4 w-px bg-slate-200"></span>
+
+          <!-- Filter Lokasi Dapur Siswa -->
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+              <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              Lokasi:
+            </span>
+            <select id="dapurLocationFilter" onchange="applyFilter()" class="bg-slate-50 border border-slate-200 text-xs font-semibold rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-700 cursor-pointer max-w-xs truncate">
+              <option value="all">Semua Lokasi Dapur Siswa</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="text-xs text-slate-500 flex items-center gap-3">
+          <span id="lastUpdatedLabel">Dikemaskini: baru sebentar</span>
+          <span class="h-3 w-px bg-slate-300"></span>
+          <span id="dataStatusBadge" class="text-indigo-600 font-semibold">Mod Data: Demo Interaktif</span>
+        </div>
+      </div>
+
+      <!-- KEY PERFORMANCE INDICATORS (KPIs) -->
+      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <!-- Total Ambilan -->
+        <div class="presentation-card bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Jumlah Keseluruhan</span>
+            <div class="p-2 rounded-xl bg-indigo-50 text-indigo-600">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            </div>
+          </div>
+          <div class="mt-3 flex items-baseline gap-2">
+            <span id="kpiTotal" class="text-3xl font-extrabold text-slate-900 tracking-tight">0</span>
+            <span class="text-xs text-slate-500 font-medium">pelajar</span>
+          </div>
+          <p class="mt-1 text-xs text-emerald-600 flex items-center font-medium">
+            <svg class="w-3.5 h-3.5 mr-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clip-rule="evenodd"/></svg>
+            Rekod berjaya direkodkan
+          </p>
+        </div>
+
+        <!-- Ambilan Hari Ini -->
+        <div class="presentation-card bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Pengambilan Hari Ini</span>
+            <div class="p-2 rounded-xl bg-blue-50 text-blue-600">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            </div>
+          </div>
+          <div class="mt-3 flex items-baseline gap-2">
+            <span id="kpiToday" class="text-3xl font-extrabold text-indigo-600 tracking-tight">0</span>
+            <span class="text-xs text-slate-500 font-medium">hari ini</span>
+          </div>
+          <p class="mt-1 text-xs text-slate-500 font-medium" id="todayDateLabel">
+            Tarikh: Semasa
+          </p>
+        </div>
+
+        <!-- Purata Harian -->
+        <div class="presentation-card bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Purata Harian</span>
+            <div class="p-2 rounded-xl bg-amber-50 text-amber-600">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            </div>
+          </div>
+          <div class="mt-3 flex items-baseline gap-2">
+            <span id="kpiAverage" class="text-3xl font-extrabold text-slate-900 tracking-tight">0</span>
+            <span class="text-xs text-slate-500 font-medium">orang / hari</span>
+          </div>
+          <p class="mt-1 text-xs text-slate-500 font-medium">
+            Kadar agihan konsisten
+          </p>
+        </div>
+
+        <!-- Lokasi Paling Aktif -->
+        <div class="presentation-card bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Pusat Agihan Teratas</span>
+            <div class="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+            </div>
+          </div>
+          <div class="mt-3 truncate">
+            <span id="kpiTopDapur" class="text-lg font-extrabold text-slate-900 tracking-tight truncate block">-</span>
+          </div>
+          <p class="mt-1 text-xs text-indigo-600 font-semibold" id="kpiTopDapurCount">
+            0 agihan direkodkan
+          </p>
+        </div>
+
+      </section>
+
+      <!-- CHARTS SECTION -->
+      <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- GRAF 1: Bilangan Setiap Hari (Span 2 Columns) -->
+        <div class="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200/90 shadow-xs flex flex-col justify-between">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-2 border-b border-slate-100 gap-2">
+            <div>
+              <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                <span>Trend Bilangan Setiap Hari</span>
+                <span class="text-[11px] font-semibold px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-md">Harian</span>
+              </h3>
+              <p class="text-xs text-slate-500 mt-0.5">Jumlah pelajar yang mengambil makanan mengikut tarikh</p>
+            </div>
+            <!-- Chart type toggle (Bar or Line) -->
+            <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs">
+              <button onclick="changeDailyChartType('bar')" id="btnChartBar" class="px-2.5 py-1 rounded-lg bg-white shadow-xs font-semibold text-slate-800">Bar</button>
+              <button onclick="changeDailyChartType('line')" id="btnChartLine" class="px-2.5 py-1 rounded-lg text-slate-500 font-medium hover:text-slate-800">Garisan</button>
+            </div>
+          </div>
+
+          <div class="relative h-72 sm:h-80 w-full mt-2">
+            <canvas id="dailyChartCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- GRAF 2: Agihan Mengikut Dapur Siswa (Span 1 Column) -->
+        <div class="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-xs flex flex-col justify-between">
+          <div class="pb-4 mb-2 border-b border-slate-100">
+            <h3 class="text-base font-bold text-slate-900">Pecahan Dapur Siswa</h3>
+            <p class="text-xs text-slate-500 mt-0.5">Agihan mengikut cawangan / lokasi Dapur</p>
+          </div>
+          
+          <div class="relative h-64 sm:h-72 w-full flex items-center justify-center">
+            <canvas id="dapurChartCanvas"></canvas>
+          </div>
+
+          <!-- Total Center Sub-info -->
+          <div class="mt-3 pt-3 border-t border-slate-100 text-center text-xs text-slate-500 flex justify-around">
+            <span>Pusat Aktif: <strong class="text-slate-800" id="subTotalDapurCount">0</strong></span>
+            <span>Formula: <strong class="text-indigo-600">Peratus %</strong></span>
+          </div>
+        </div>
+
+        <!-- GRAF 3: Demografi Mengikut Fakulti (Full Width 3 Columns) -->
+        <div class="lg:col-span-3 bg-white p-6 rounded-3xl border border-slate-200/90 shadow-xs">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-3 border-b border-slate-100 gap-2">
+            <div>
+              <h3 class="text-base font-bold text-slate-900">Demografi Pelajar Mengikut Fakulti</h3>
+              <p class="text-xs text-slate-500 mt-0.5">Statistik pemohon berdasarkan pengenalan fakulti UniMAP</p>
+            </div>
+            <span class="text-xs font-medium text-slate-400 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100">Susunan Kekerapan Tertinggi</span>
+          </div>
+
+          <div class="relative h-72 w-full mt-2">
+            <canvas id="fakultiChartCanvas"></canvas>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- RECENT ENTRIES TABLE (FOR PRESENTATION VERIFICATION) -->
+      <section class="bg-white rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden">
+        <div class="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base font-bold text-slate-900">10 Rekod Pengambilan Terkini</h3>
+            <p class="text-xs text-slate-500">Senarai kemasukan pelajar terkini untuk semakan masa nyata</p>
+          </div>
+          <div class="text-xs text-slate-400">
+            Sumber Tab: <span class="font-semibold text-slate-600">rekod pengambilan</span>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-50/80 text-slate-500 font-semibold border-b border-slate-200">
+                <th class="py-3 px-4">#</th>
+                <th class="py-3 px-4">Nama Pelajar</th>
+                <th class="py-3 px-4">No. Matrik</th>
+                <th class="py-3 px-4">Fakulti</th>
+                <th class="py-3 px-4">Lokasi Dapur Siswa</th>
+                <th class="py-3 px-4 text-right">Masa / Tarikh</th>
+              </tr>
+            </thead>
+            <tbody id="recentTableBody" class="divide-y divide-slate-100 text-slate-700">
+              <tr>
+                <td colspan="6" class="py-6 text-center text-slate-400">Sedang memuatkan senarai rekod...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-12 bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-400">
+      <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <p>Inisiatif Kebajikan Mahasiswa UniMAP &bull; Dapur Siswa</p>
+        <p class="text-slate-400">Secured Dashboard &bull; Chart.js &bull; Tailwind CSS</p>
+      </div>
+    </footer>
+  </div>
+
+  <!-- CONFIG / SETTINGS MODAL -->
+  <div id="configModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+    <div class="bg-white rounded-3xl shadow-xl max-w-lg w-full p-6 border border-slate-200">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="font-bold text-slate-900 text-sm">Tetapan Sambungan & Keselamatan</h3>
+        <button onclick="closeConfigModal()" class="text-slate-400 hover:text-slate-600 p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="py-4 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Google Sheet URL atau ID (Tab: rekod pengambilan)</label>
+          <input 
+            type="text" 
+            id="cfgSheetId" 
+            placeholder="Contoh: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms atau Link Spreadsheet" 
+            class="w-full text-xs font-mono p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+          <p class="text-[11px] text-slate-500 mt-1 leading-relaxed">
+            Oleh kerana kod Apps Script tidak diubah, anda boleh masukkan Spreadsheet ID atau pautan Google Sheet anda di sini (Pastikan perkongsian Sheet: <em>"Anyone with the link can view"</em>).
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Tukar Kata Laluan Dashboard</label>
+          <input 
+            type="text" 
+            id="cfgPassword" 
+            placeholder="admin123" 
+            class="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+          <p class="text-[11px] text-slate-400 mt-1">Kata laluan disimpan dengan selamat pada pelayar anda.</p>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+        <button onclick="closeConfigModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Batal</button>
+        <button onclick="saveConfigSettings()" class="px-4 py-2 text-xs font-semibold bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-sm">Simpan Tetapan</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* -------------------------------------------------------------
+     * GLOBAL CONFIG & STATE
+     * ----------------------------------------------------------- */
+    const DEFAULT_PASS = "admin123";
+    const SCRIPT_EXEC_URL = "https://script.google.com/macros/s/AKfycbyJtiXT5env2haNwj43PlTw7IJtByha9qIAUDBbQe_ObdbLaYJNNTiMdlhYucfS0QH0/exec";
+
+    let appConfig = {
+      scriptUrl: SCRIPT_EXEC_URL,
+      sheetIdOrUrl: localStorage.getItem("dapur_sheet_id") || "",
+      dataSource: localStorage.getItem("dapur_source_pref") || "demo",
+      password: localStorage.getItem("dapur_dashboard_password") || DEFAULT_PASS
+    };
+
+    let activeDataPayload = null;
+    let dailyChartType = "bar"; // 'bar' | 'line'
+    let isPresentationMode = false;
+
+    // Chart instances
+    let chartDailyInstance = null;
+    let chartDapurInstance = null;
+    let chartFakultiInstance = null;
+
+    /* -------------------------------------------------------------
+     * GENERATE REALISTIC DEMO DATASET
+     * ----------------------------------------------------------- */
+    function generateDemoDataset() {
+      const today = new Date();
+      const kitchensList = [
+        "Dapur Siswa Kampus Pauh Putra",
+        "Dapur Siswa Kampus Alam UniMAP",
+        "Dapur Siswa Kolej Kediaman Wang Ulu",
+        "Dapur Siswa Kompleks Pusat Islam"
+      ];
+
+      const fakultiMap = {
+        "Fakulti Teknologi Kejuruteraan Elektrik (FTKE)": 235,
+        "Fakulti Kejuruteraan Mekanikal (FKM)": 194,
+        "Fakulti Kejuruteraan Awam & Alam Sekitar": 158,
+        "Fakulti Perniagaan & Komunikasi (FPK)": 175,
+        "Fakulti Teknologi Kejuruteraan Kimia": 130,
+        "Pusat Pengajian Diploma": 118
+      };
+
+      const facultiesList = Object.keys(fakultiMap);
+      const sampleNames = [
+        "Muhammad Amirul bin Roslan", "Nur Aisyah binti Zulkifli", "Tan Wei Liang", 
+        "Siti Sarah binti Halim", "Kavitha a/p Ramesh", "Ahmad Farhan bin Shukri",
+        "Muhammad Hariz bin Azman", "Lim Jia Hui", "Noraini binti Mohd Noor", "Danial Hafiz bin Radzi"
+      ];
+
+      const rawRecords = [];
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+      // Janakan lebih kurang 800 rekod simulasi selama 14 hari
+      for (let i = 13; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const dateKey = `${yyyy}-${mm}-${dd}`;
+        
+        const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+        const count = isWeekend ? Math.floor(Math.random() * 20) + 15 : Math.floor(Math.random() * 45) + 30;
+
+        for (let k = 0; k < count; k++) {
+          const kitchen = kitchensList[Math.floor(Math.random() * kitchensList.length)];
+          const faculty = facultiesList[Math.floor(Math.random() * facultiesList.length)];
+          const name = sampleNames[Math.floor(Math.random() * sampleNames.length)];
+          const matrik = `221${Math.floor(10000 + Math.random() * 90000)}`;
+          
+          rawRecords.push({
+            nama: name,
+            no_matrik: matrik,
+            fakulti: faculty,
+            dapur: kitchen,
+            dateKey: dateKey,
+            waktu: `${dateKey} ${String(11 + Math.floor(Math.random() * 4)).padStart(2, '0')}:${String(Math.floor(Math.random() * 59)).padStart(2, '0')}`
+          });
+        }
+      }
+
+      return {
+        status: "success",
+        records: rawRecords,
+        kitchens: kitchensList
+      };
+    }
+
+    function togglePasswordVisibility() {
+      const input = document.getElementById('adminPassword');
+      const icon = document.getElementById('eyeIcon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.add('text-indigo-600');
+      } else {
+        input.type = 'password';
+        icon.classList.remove('text-indigo-600');
+      }
+    }
+
+    function handleLogin(event) {
+      if (event) event.preventDefault();
+      const entered = document.getElementById('adminPassword').value.trim();
+      const errorEl = document.getElementById('loginError');
+
+      // Semak kata laluan dalam dashboard
+      const currentPassword = appConfig.password || DEFAULT_PASS;
+      if (entered === currentPassword) {
+        errorEl.classList.add('hidden');
+        sessionStorage.setItem("dapur_is_authenticated", "true");
+        unlockDashboardView();
+      } else {
+        errorEl.classList.remove('hidden');
+        document.getElementById('adminPassword').select();
+      }
+    }
+
+    function unlockDashboardView() {
+      document.getElementById('loginModal').classList.add('opacity-0', 'pointer-events-none');
+      setTimeout(() => {
+        document.getElementById('loginModal').classList.add('hidden');
+        document.getElementById('dashboardApp').classList.remove('hidden');
+        fetchDashboardData();
+      }, 200);
+    }
+
+    function logout() {
+      sessionStorage.removeItem("dapur_is_authenticated");
+      document.getElementById('adminPassword').value = '';
+      document.getElementById('loginError').classList.add('hidden');
+      document.getElementById('loginModal').classList.remove('opacity-0', 'pointer-events-none', 'hidden');
+      document.getElementById('dashboardApp').classList.add('hidden');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('todayDateLabel').innerText = "Tarikh: " + new Date().toLocaleDateString('ms-MY', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
+      
+      if (sessionStorage.getItem("dapur_is_authenticated") === "true") {
+        unlockDashboardView();
+      }
+    });
+
+    async function fetchDashboardData() {
+      const refreshIcon = document.getElementById('refreshIcon');
+      refreshIcon.classList.add('animate-spin');
+
+      if (appConfig.dataSource === 'live') {
+        let loaded = false;
+
+        // Sekiranya pengguna memasukkan ID / URL Google Sheet
+        if (appConfig.sheetIdOrUrl) {
+          loaded = await fetchFromDirectGoogleSheet(appConfig.sheetIdOrUrl);
+        }
+
+        if (!loaded) {
+          // Jika tiada URL Sheet atau gagal capai, kembali ke Demo interaktif
+          fallbackToDemo();
+        }
+      } else {
+        fallbackToDemo();
+      }
+
+      applyFilter();
+      updateLastRefreshedTime();
+      refreshIcon.classList.remove('animate-spin');
+    }
+
+    async function fetchFromDirectGoogleSheet(sheetIdOrUrl) {
+      try {
+        let sheetId = sheetIdOrUrl;
+        const match = sheetIdOrUrl.match(/[-\w]{25,}/);
+        if (match) sheetId = match[0];
+
+        // Guna Google Sheet Public CSV Export untuk tab "rekod pengambilan"
+        const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=rekod%20pengambilan`;
+        const res = await fetch(csvUrl);
+        if (!res.ok) throw new Error("Gagal muat turun CSV Sheet");
+        
+        const csvText = await res.text();
+        const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+        
+        if (parsed.data && parsed.data.length > 0) {
+          activeDataPayload = transformSheetRowsToAnalytics(parsed.data);
+          document.getElementById('dataStatusBadge').innerText = "Mod Data: Google Sheet (Live)";
+          document.getElementById('dataStatusBadge').className = "text-emerald-600 font-semibold";
+          return true;
+        }
+      } catch (err) {
+        console.warn("Direct CSV access failed, falling back to demo:", err);
+      }
+      return false;
+    }
+
+    function transformSheetRowsToAnalytics(rows) {
+      // Struktur rekod pengambilan: Nama, No Matrik, Fakulti, Masa/Tarikh, Dapur Siswa
+      const rawRecords = [];
+      const kitchenSet = new Set();
+
+      rows.forEach((r) => {
+        const nama = r['Nama'] || r['nama'] || '-';
+        const matrik = r['No Matrik'] || r['No. Matrik'] || r['no_matrik'] || '-';
+        const fakulti = (r['Fakulti'] || r['fakulti'] || 'Lain-lain').trim();
+        const rawDate = r['Masa/Tarikh'] || r['Tarikh'] || r['Masa'] || '';
+        const dapur = (r['Dapur Siswa'] || r['dapur_siswa'] || 'Tidak Dinyatakan').trim();
+
+        if (dapur && dapur !== '-') {
+          kitchenSet.add(dapur);
+        }
+
+        let dateKey = 'Lain-lain';
+        let parsedD = new Date(rawDate);
+        if (!isNaN(parsedD)) {
+          const yyyy = parsedD.getFullYear();
+          const mm = String(parsedD.getMonth() + 1).padStart(2, '0');
+          const dd = String(parsedD.getDate()).padStart(2, '0');
+          dateKey = `${yyyy}-${mm}-${dd}`;
+        }
+
+        rawRecords.push({
+          nama,
+          no_matrik: matrik,
+          fakulti,
+          dapur,
+          dateKey,
+          waktu: rawDate || 'Baru ini'
+        });
+      });
+
+      return {
+        status: "success",
+        records: rawRecords,
+        kitchens: Array.from(kitchenSet)
+      };
+    }
+    function updateLocationFilterDropdown() {
+      const select = document.getElementById('dapurLocationFilter');
+      const currentValue = select.value || 'all';
+
+      if (!activeDataPayload || !activeDataPayload.records) return;
+
+      // Kumpul semua nama dapur unik
+      const uniqueKitchens = new Set();
+      activeDataPayload.records.forEach(r => {
+        if (r.dapur && r.dapur !== '-') uniqueKitchens.add(r.dapur);
+      });
+
+      const sortedKitchens = Array.from(uniqueKitchens).sort();
+
+      // Bina semula options
+      select.innerHTML = '<option value="all">Semua Lokasi Dapur Siswa</option>';
+      sortedKitchens.forEach(k => {
+        const opt = document.createElement('option');
+        opt.value = k;
+        opt.textContent = k;
+        if (k === currentValue) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
+
+    function applyFilter() {
+      if (!activeDataPayload || !activeDataPayload.records) return;
+
+      updateLocationFilterDropdown();
+
+      const timeRange = document.getElementById('timeRangeFilter').value;
+      const selectedLocation = document.getElementById('dapurLocationFilter').value;
+
+      // 1. Tapis mengikut Lokasi Dapur
+      let filtered = activeDataPayload.records;
+      if (selectedLocation !== 'all') {
+        filtered = filtered.filter(r => r.dapur === selectedLocation);
+      }
+
+      // Cari julat tarikh yang ada
+      const allDates = Array.from(new Set(activeDataPayload.records.map(r => r.dateKey))).filter(d => d !== 'Lain-lain').sort();
+
+      // 2. Tapis mengikut Julat Hari
+      if (timeRange !== 'all') {
+        const daysToKeep = parseInt(timeRange, 10);
+        const allowedDates = new Set(allDates.slice(-daysToKeep));
+        filtered = filtered.filter(r => allowedDates.has(r.dateKey));
+      }
+
+      // 3. Himpunkan analitik berdasarkan data tertapis
+      const dailyMap = {};
+      const dapurMap = {};
+      const fakultiMap = {};
+      let todayCount = 0;
+
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+      filtered.forEach(r => {
+        if (r.dateKey === todayStr) todayCount++;
+        dailyMap[r.dateKey] = (dailyMap[r.dateKey] || 0) + 1;
+        dapurMap[r.dapur] = (dapurMap[r.dapur] || 0) + 1;
+        fakultiMap[r.fakulti] = (fakultiMap[r.fakulti] || 0) + 1;
+      });
+
+      const totalInRange = filtered.length;
+      const activeDays = Object.keys(dailyMap).length || 1;
+      const averagePerDay = (totalInRange / activeDays).toFixed(1);
+
+      // Kemaskini Kad KPI
+      document.getElementById('kpiTotal').innerText = Number(totalInRange).toLocaleString();
+      document.getElementById('kpiToday').innerText = Number(todayCount).toLocaleString();
+      document.getElementById('kpiAverage').innerText = averagePerDay;
+
+      // Lokasi Teratas
+      let topDapurName = "-";
+      let topDapurCount = 0;
+      for (const [name, count] of Object.entries(dapurMap)) {
+        if (count > topDapurCount) {
+          topDapurCount = count;
+          topDapurName = name;
+        }
+      }
+
+      if (selectedLocation !== 'all') {
+        document.getElementById('kpiTopDapur').innerText = selectedLocation;
+        document.getElementById('kpiTopDapurCount').innerText = `${totalInRange.toLocaleString()} rekod di lokasi ini`;
+      } else {
+        document.getElementById('kpiTopDapur').innerText = topDapurName;
+        document.getElementById('kpiTopDapurCount').innerText = `${topDapurCount.toLocaleString()} rekod terisi`;
+      }
+
+      document.getElementById('subTotalDapurCount').innerText = Object.keys(dapurMap).length;
+
+      // Render Graf & Jadual
+      renderDailyChart(dailyMap);
+      renderDapurChart(dapurMap);
+      renderFakultiChart(fakultiMap);
+
+      // Dapatkan 10 rekod terkini mengikut tapisan
+      const recentRows = filtered.slice(-10).reverse();
+      renderRecentTable(recentRows);
+    }
+
+    function setDataSource(type, triggerRefresh = true) {
+      appConfig.dataSource = type;
+      localStorage.setItem("dapur_source_pref", type);
+
+      const btnLive = document.getElementById('btnSourceLive');
+      const btnDemo = document.getElementById('btnSourceDemo');
+      const badge = document.getElementById('dataStatusBadge');
+
+      if (type === 'live') {
+        if (!appConfig.sheetIdOrUrl) {
+          openConfigModal();
+          return;
+        }
+        btnLive.className = "px-2.5 py-1 rounded-lg bg-white shadow-xs text-indigo-700 font-semibold transition";
+        btnDemo.className = "px-2.5 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition font-medium";
+        badge.innerText = "Mod Data: Google Sheet (Live)";
+        badge.className = "text-emerald-600 font-semibold";
+      } else {
+        btnDemo.className = "px-2.5 py-1 rounded-lg bg-white shadow-xs text-indigo-700 font-semibold transition";
+        btnLive.className = "px-2.5 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition font-medium";
+        badge.innerText = "Mod Data: Demo Interaktif";
+        badge.className = "text-indigo-600 font-semibold";
+      }
+
+      if (triggerRefresh) fetchDashboardData();
+    }
+
+    function updateLastRefreshedTime() {
+      const now = new Date();
+      document.getElementById('lastUpdatedLabel').innerText = "Dikemaskini: " + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function applyFilter() {
+      if (!activeDataPayload) return;
+      const filterValue = document.getElementById('timeRangeFilter').value;
+      
+      let filteredDaily = { ...activeDataPayload.daily };
+      const sortedKeys = Object.keys(filteredDaily).sort();
+
+      if (filterValue !== 'all') {
+        const daysToKeep = parseInt(filterValue, 10);
+        const slicedKeys = sortedKeys.slice(-daysToKeep);
+        const newDaily = {};
+        slicedKeys.forEach(k => newDaily[k] = filteredDaily[k]);
+        filteredDaily = newDaily;
+      }
+
+      // Update KPI figures
+      const totalInRange = Object.values(filteredDaily).reduce((acc, curr) => acc + curr, 0);
+      const activeDays = Object.keys(filteredDaily).length || 1;
+      const averagePerDay = (totalInRange / activeDays).toFixed(1);
+
+      document.getElementById('kpiTotal').innerText = Number(totalInRange).toLocaleString();
+      document.getElementById('kpiToday').innerText = Number(activeDataPayload.today || 0).toLocaleString();
+      document.getElementById('kpiAverage').innerText = averagePerDay;
+
+      // Top kitchen
+      let topDapurName = "-";
+      let topDapurCount = 0;
+      if (activeDataPayload.dapur) {
+        for (const [name, count] of Object.entries(activeDataPayload.dapur)) {
+          if (count > topDapurCount) {
+            topDapurCount = count;
+            topDapurName = name;
+          }
+        }
+      }
+      document.getElementById('kpiTopDapur').innerText = topDapurName;
+      document.getElementById('kpiTopDapurCount').innerText = `${topDapurCount.toLocaleString()} rekod terisi`;
+      document.getElementById('subTotalDapurCount').innerText = Object.keys(activeDataPayload.dapur || {}).length;
+
+      // Render Charts
+      renderDailyChart(filteredDaily);
+      renderDapurChart(activeDataPayload.dapur || {});
+      renderFakultiChart(activeDataPayload.fakulti || {});
+      renderRecentTable(activeDataPayload.recent || []);
+    }
+
+    function renderDailyChart(dailyData) {
+      const ctx = document.getElementById('dailyChartCanvas').getContext('2d');
+      const labels = Object.keys(dailyData).sort();
+      const values = labels.map(k => dailyData[k]);
+
+      // Format date labels
+      const formattedLabels = labels.map(l => {
+        const parts = l.split('-');
+        if (parts.length === 3) {
+          const dt = new Date(parts[0], parts[1] - 1, parts[2]);
+          return dt.toLocaleDateString('ms-MY', { day: '2-digit', month: 'short' });
+        }
+        return l;
+      });
+
+      if (chartDailyInstance) {
+        chartDailyInstance.destroy();
+      }
+
+      chartDailyInstance = new Chart(ctx, {
+        type: dailyChartType,
+        data: {
+          labels: formattedLabels,
+          datasets: [{
+            label: 'Bilangan Pelajar Ambil',
+            data: values,
+            backgroundColor: dailyChartType === 'bar' ? 'rgba(79, 70, 229, 0.85)' : 'rgba(79, 70, 229, 0.15)',
+            borderColor: '#4f46e5',
+            borderWidth: 2.5,
+            borderRadius: dailyChartType === 'bar' ? 8 : 0,
+            pointBackgroundColor: '#4f46e5',
+            pointBorderColor: '#ffffff',
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            fill: dailyChartType === 'line',
+            tension: 0.35
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              padding: 12,
+              backgroundColor: '#1e293b',
+              cornerRadius: 10,
+              titleFont: { size: 12, weight: 'bold' },
+              bodyFont: { size: 12 }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { color: 'rgba(226, 232, 240, 0.6)' },
+              ticks: { precision: 0, font: { size: 11, family: 'Plus Jakarta Sans' } }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { font: { size: 11, family: 'Plus Jakarta Sans' } }
+            }
+          }
+        }
+      });
+    }
+
+    function changeDailyChartType(type) {
+      dailyChartType = type;
+      const btnBar = document.getElementById('btnChartBar');
+      const btnLine = document.getElementById('btnChartLine');
+
+      if (type === 'bar') {
+        btnBar.className = "px-2.5 py-1 rounded-lg bg-white shadow-xs font-semibold text-slate-800";
+        btnLine.className = "px-2.5 py-1 rounded-lg text-slate-500 font-medium hover:text-slate-800";
+      } else {
+        btnLine.className = "px-2.5 py-1 rounded-lg bg-white shadow-xs font-semibold text-slate-800";
+        btnBar.className = "px-2.5 py-1 rounded-lg text-slate-500 font-medium hover:text-slate-800";
+      }
+
+      applyFilter();
+    }
+
+    function renderDapurChart(dapurData) {
+      const ctx = document.getElementById('dapurChartCanvas').getContext('2d');
+      const labels = Object.keys(dapurData);
+      const values = Object.values(dapurData);
+
+      const colorPalette = [
+        '#4f46e5', // Indigo
+        '#06b6d4', // Cyan
+        '#f59e0b', // Amber
+        '#10b981', // Emerald
+        '#ec4899', // Pink
+        '#8b5cf6'  // Violet
+      ];
+
+      if (chartDapurInstance) {
+        chartDapurInstance.destroy();
+      }
+
+      chartDapurInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: values,
+            backgroundColor: colorPalette.slice(0, labels.length),
+            borderWidth: 3,
+            borderColor: '#ffffff',
+            hoverOffset: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '68%',
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                boxWidth: 10,
+                padding: 14,
+                font: { size: 10, family: 'Plus Jakarta Sans' }
+              }
+            },
+            tooltip: {
+              padding: 12,
+              backgroundColor: '#1e293b',
+              cornerRadius: 10
+            }
+          }
+        }
+      });
+    }
+
+    function renderFakultiChart(fakultiData) {
+      const ctx = document.getElementById('fakultiChartCanvas').getContext('2d');
+      const sortedEntries = Object.entries(fakultiData).sort((a, b) => b[1] - a[1]);
+      const labels = sortedEntries.map(e => e[0]);
+      const values = sortedEntries.map(e => e[1]);
+
+      if (chartFakultiInstance) {
+        chartFakultiInstance.destroy();
+      }
+
+      chartFakultiInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Bilangan Mahasiswa',
+            data: values,
+            backgroundColor: 'rgba(99, 102, 241, 0.75)',
+            hoverBackgroundColor: '#4f46e5',
+            borderRadius: 6,
+            borderSkipped: false
+          }]
+        },
+        options: {
+          indexAxis: 'y', // Bar mendatar agar senang dibaca
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              padding: 12,
+              backgroundColor: '#1e293b',
+              cornerRadius: 10
+            }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              grid: { color: 'rgba(226, 232, 240, 0.6)' },
+              ticks: { precision: 0, font: { size: 11, family: 'Plus Jakarta Sans' } }
+            },
+            y: {
+              grid: { display: false },
+              ticks: { font: { size: 11, family: 'Plus Jakarta Sans' } }
+            }
+          }
+        }
+      });
+    }
+
+    function renderRecentTable(records) {
+      const tbody = document.getElementById('recentTableBody');
+      tbody.innerHTML = '';
+
+      if (!records || records.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-400">Tiada rekod terkini ditemui.</td></tr>`;
+        return;
+      }
+
+      records.forEach((r, idx) => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 transition border-b border-slate-100 last:border-0";
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-mono text-slate-400">${idx + 1}</td>
+          <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(r.nama || '-')}</td>
+          <td class="py-3 px-4 font-mono text-indigo-600">${escapeHtml(r.no_matrik || '-')}</td>
+          <td class="py-3 px-4 text-slate-600 truncate max-w-xs">${escapeHtml(r.fakulti || '-')}</td>
+          <td class="py-3 px-4"><span class="inline-block px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-medium text-[11px]">${escapeHtml(r.dapur || '-')}</span></td>
+          <td class="py-3 px-4 text-right text-slate-500 font-mono text-[11px]">${escapeHtml(r.waktu || '-')}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = String(text);
+      return div.innerHTML;
+    }
+
+    function togglePresentationMode() {
+      isPresentationMode = !isPresentationMode;
+      const btnTxt = document.getElementById('txtPresentation');
+
+      if (isPresentationMode) {
+        if (document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        }
+        btnTxt.innerText = "Keluar Presentasi";
+      } else {
+        if (document.exitFullscreen && document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+        }
+        btnTxt.innerText = "Mod Presentasi";
+      }
+    }
+
+    function openConfigModal() {
+      document.getElementById('cfgSheetId').value = appConfig.sheetIdOrUrl;
+      document.getElementById('cfgPassword').value = appConfig.password;
+      document.getElementById('configModal').classList.remove('hidden');
+    }
+
+    function closeConfigModal() {
+      document.getElementById('configModal').classList.add('hidden');
+    }
+
+    function saveConfigSettings() {
+      const sheetInput = document.getElementById('cfgSheetId').value.trim();
+      const pwd = document.getElementById('cfgPassword').value.trim() || DEFAULT_PASS;
+
+      appConfig.sheetIdOrUrl = sheetInput;
+      appConfig.password = pwd;
+
+      localStorage.setItem("dapur_sheet_id", sheetInput);
+      localStorage.setItem("dapur_dashboard_password", pwd);
+
+      closeConfigModal();
+      if (sheetInput) {
+        setDataSource('live');
+      } else {
+        setDataSource('demo');
+      }
+    }
+  </script>
+</body>
+</html>
